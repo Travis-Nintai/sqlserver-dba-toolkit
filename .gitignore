@@ -1,0 +1,31 @@
+# SQL Server / T-SQL artifacts
+*.bak
+*.trn
+*.mdf
+*.ldf
+*.ndf
+*.sqlplan
+*.xel
+*.trc
+
+# Backup output and restore staging - never commit these
+backups/
+restore/
+
+# PowerShell artifacts
+*.ps1xml
+*.log
+
+# Editor and OS artifacts
+.vscode/
+*.swp
+*~
+.DS_Store
+Thumbs.db
+
+# Credentials and environment-specific files - never commit these
+*.pem
+*.key
+*.pfx
+*.cer
+*.snk
