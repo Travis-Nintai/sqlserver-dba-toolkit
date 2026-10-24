@@ -1,10 +1,12 @@
 # SQL Server DBA Toolkit
 
 Operational T-SQL for Microsoft SQL Server administration: instance health
-checks, backup verification from backup history, and log shipping
-monitoring. These are the checks a DBA runs on a schedule and during an
-incident, written to be scheduled in SQL Server Agent or run by hand with
-the same result either way.
+checks, backup verification from backup history, log shipping
+monitoring, blocking and deadlock diagnosis, wait statistics, index and
+statistics maintenance guidance, TempDB health, and Always On
+availability group monitoring concepts. These are the checks a DBA runs
+on a schedule and during an incident, written to be scheduled in SQL
+Server Agent or run by hand with the same result either way.
 
 ## Who it is for
 
@@ -18,8 +20,9 @@ shipping tables.
 
 ```
 sqlserver-dba-toolkit/
-├── tsql/   -- T-SQL administrative scripts (health check, backups, log shipping)
-└── docs/   -- script conventions and the log shipping runbook
+├── tsql/   -- T-SQL administrative scripts (health, backups, log shipping,
+│               blocking/deadlocks, waits, indexes, TempDB)
+└── docs/   -- script conventions, runbooks, and maintenance guidance
 ```
 
 ## Scripts
@@ -29,6 +32,19 @@ sqlserver-dba-toolkit/
 | `tsql/db_health_check.sql` | Instance overview: version and uptime, database state and recovery model, file space usage, recent backup presence per database, long-running requests, blocking chains |
 | `tsql/backup_verification.sql` | Backup currency per database from msdb backup history: last full, differential, and log backup, with age flags against configurable thresholds |
 | `tsql/log_shipping_status.sql` | Log shipping health: primary and secondary status from the msdb log shipping monitor tables, last backup/copy/restore file and times, latency in minutes |
+| `tsql/blocking_and_deadlocks.sql` | Blocking chains with head blockers, sessions holding open transactions without active requests, and recent deadlock graphs from the system_health session |
+| `tsql/wait_statistics.sql` | Top wait types since startup with signal/resource split, plus sessions waiting right now; idle waits excluded |
+| `tsql/index_maintenance_candidates.sql` | Fragmented index candidates with reorganize/rebuild guidance, and stale statistics with high modification counts (reports only) |
+| `tsql/tempdb_health.sql` | TempDB file layout, space usage by category, top consumers, version store transactions, and current PAGELATCH contention on TempDB pages |
+
+## Docs
+
+| Doc | What it covers |
+|---|---|
+| `docs/script-conventions.md` | Conventions every script follows |
+| `docs/log-shipping-runbook.md` | Log shipping troubleshooting runbook |
+| `docs/index-maintenance.md` | Reorganize vs rebuild, statistics strategy, and how to schedule maintenance |
+| `docs/always-on-availability-groups.md` | Availability group monitoring: replica state, sync queues and lag, failover readiness, what to alert on |
 
 Health check with defaults:
 
@@ -53,6 +69,31 @@ sqlcmd -S db.example.local -E -i tsql\log_shipping_status.sql
 Run the log shipping script on the monitor server if you have one, or on
 the primary or secondary: the monitor tables live wherever log shipping was
 configured to record them, and each script header says what it reads.
+
+Blocking and deadlock report:
+
+```
+sqlcmd -S db.example.local -E -i tsql\blocking_and_deadlocks.sql
+```
+
+Wait statistics (cumulative since startup plus currently waiting sessions):
+
+```
+sqlcmd -S db.example.local -E -i tsql\wait_statistics.sql
+```
+
+Index and statistics maintenance candidates (run in the target database;
+reports only, changes nothing):
+
+```
+sqlcmd -S db.example.local -d <database> -E -i tsql\index_maintenance_candidates.sql
+```
+
+TempDB health:
+
+```
+sqlcmd -S db.example.local -E -i tsql\tempdb_health.sql
+```
 
 ## Assumptions
 
@@ -92,6 +133,9 @@ SQL Server operations as practiced: backup verification from msdb history
 rather than job success alone (a backup job can succeed and still write
 nothing useful), log shipping monitored from the monitor tables with
 latency in minutes so a drifting secondary is visible before it matters,
+blocking diagnosed as chains with the head blocker identified rather
+than as isolated blocked sessions, waits reported with the signal and
+resource split so CPU pressure and resource pressure are not confused,
 and instance health checks that separate configuration facts from current
 activity.
 
