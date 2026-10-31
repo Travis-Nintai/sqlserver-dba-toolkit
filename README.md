@@ -3,8 +3,10 @@
 Operational T-SQL for Microsoft SQL Server administration: instance health
 checks, backup verification from backup history, log shipping
 monitoring, blocking and deadlock diagnosis, wait statistics, index and
-statistics maintenance guidance, TempDB health, and Always On
-availability group monitoring concepts. These are the checks a DBA runs
+statistics maintenance guidance, TempDB health, Always On
+availability group monitoring concepts, and AWS hosting guidance
+(RDS versus EC2) with an inventory script to feed that decision.
+These are the checks a DBA runs
 on a schedule and during an incident, written to be scheduled in SQL
 Server Agent or run by hand with the same result either way.
 
@@ -36,6 +38,7 @@ sqlserver-dba-toolkit/
 | `tsql/wait_statistics.sql` | Top wait types since startup with signal/resource split, plus sessions waiting right now; idle waits excluded |
 | `tsql/index_maintenance_candidates.sql` | Fragmented index candidates with reorganize/rebuild guidance, and stale statistics with high modification counts (reports only) |
 | `tsql/tempdb_health.sql` | TempDB file layout, space usage by category, top consumers, version store transactions, and current PAGELATCH contention on TempDB pages |
+| `tsql/hosting_inventory.sql` | Read-only inventory for an AWS hosting decision: edition and version, database recovery models and flags, Agent job step types, linked servers, log shipping and availability group configuration, snapshots, CLR and xp_cmdshell settings |
 
 ## Docs
 
@@ -45,6 +48,7 @@ sqlserver-dba-toolkit/
 | `docs/log-shipping-runbook.md` | Log shipping troubleshooting runbook |
 | `docs/index-maintenance.md` | Reorganize vs rebuild, statistics strategy, and how to schedule maintenance |
 | `docs/always-on-availability-groups.md` | Availability group monitoring: replica state, sync queues and lag, failover readiness, what to alert on |
+| `docs/aws-hosted-sql-server.md` | RDS versus EC2 decision guide: what RDS removes or limits, backup and recovery behavior, Multi-AZ versus availability groups, migration paths, sizing and cost notes, decision checklist |
 
 Health check with defaults:
 
@@ -95,6 +99,13 @@ TempDB health:
 sqlcmd -S db.example.local -E -i tsql\tempdb_health.sql
 ```
 
+AWS hosting inventory (run on the current instance before migration
+planning; read the output alongside `docs/aws-hosted-sql-server.md`):
+
+```
+sqlcmd -S db.example.local -E -i tsql\hosting_inventory.sql
+```
+
 ## Assumptions
 
 - SQL Server 2016 or later. The scripts use DMVs and catalog views
@@ -137,7 +148,11 @@ blocking diagnosed as chains with the head blocker identified rather
 than as isolated blocked sessions, waits reported with the signal and
 resource split so CPU pressure and resource pressure are not confused,
 and instance health checks that separate configuration facts from current
-activity.
+activity. The AWS hosting material applies the same discipline to a
+platform decision: inventory the blockers first (log shipping, CLR,
+Agent step types, recovery models), then choose RDS or EC2 on evidence
+rather than on the assumption that a managed instance runs everything
+an on-premises instance runs.
 
 ## Background
 
