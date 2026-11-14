@@ -4,8 +4,9 @@ Operational T-SQL for Microsoft SQL Server administration: instance health
 checks, backup verification from backup history, log shipping
 monitoring, blocking and deadlock diagnosis, wait statistics, index and
 statistics maintenance guidance, TempDB health, SQL Server Agent job
-health, Always On availability group monitoring concepts, and AWS hosting
-guidance (RDS versus EC2) with an inventory script to feed that decision.
+health, database file and capacity checks, Always On availability group
+monitoring concepts, and AWS hosting guidance (RDS versus EC2) with an
+inventory script to feed that decision.
 These are the checks a DBA runs
 on a schedule and during an incident, written to be scheduled in SQL
 Server Agent or run by hand with the same result either way.
@@ -23,7 +24,8 @@ shipping tables.
 ```
 sqlserver-dba-toolkit/
 ├── tsql/   -- T-SQL administrative scripts (health, backups, log shipping,
-│               blocking/deadlocks, waits, indexes, TempDB, Agent jobs)
+│               blocking/deadlocks, waits, indexes, TempDB, Agent jobs,
+│               file and capacity checks)
 └── docs/   -- script conventions, runbooks, and maintenance guidance
 ```
 
@@ -39,6 +41,7 @@ sqlserver-dba-toolkit/
 | `tsql/index_maintenance_candidates.sql` | Fragmented index candidates with reorganize/rebuild guidance, and stale statistics with high modification counts (reports only) |
 | `tsql/tempdb_health.sql` | TempDB file layout, space usage by category, top consumers, version store transactions, and current PAGELATCH contention on TempDB pages |
 | `tsql/agent_job_health.sql` | SQL Server Agent job health: recent failures, jobs with no successful run in the threshold window, currently running and long-running jobs, jobs with no schedule, disabled jobs, unresolvable owners, and jobs with no failure notification |
+| `tsql/database_files_capacity.sql` | Database file and capacity check: per-database size and free space inside the files, file inventory with growth settings, volume free space, autogrowth audit, and virtual log file counts |
 | `tsql/hosting_inventory.sql` | Read-only inventory for an AWS hosting decision: edition and version, database recovery models and flags, Agent job step types, linked servers, log shipping and availability group configuration, snapshots, CLR and xp_cmdshell settings |
 
 ## Docs
@@ -50,6 +53,7 @@ sqlserver-dba-toolkit/
 | `docs/index-maintenance.md` | Reorganize vs rebuild, statistics strategy, and how to schedule maintenance |
 | `docs/always-on-availability-groups.md` | Availability group monitoring: replica state, sync queues and lag, failover readiness, what to alert on |
 | `docs/agent-job-health.md` | How to read the Agent job health check: what each section means, history retention, scheduling the check, and a troubleshooting table |
+| `docs/database-files-capacity.md` | How to read the file and capacity check: free space inside files versus free space on disk, autogrowth guidance, VLF counts, scheduling, and a troubleshooting table |
 | `docs/aws-hosted-sql-server.md` | RDS versus EC2 decision guide: what RDS removes or limits, backup and recovery behavior, Multi-AZ versus availability groups, migration paths, sizing and cost notes, decision checklist |
 
 Health check with defaults:
@@ -110,6 +114,16 @@ top of the script, and `docs/agent-job-health.md` explains each section):
 sqlcmd -S db.example.local -E -i tsql\agent_job_health.sql
 ```
 
+Database file and capacity check (per-database size and free space inside
+the files, file inventory with growth settings, volume free space,
+autogrowth audit, and virtual log file counts; thresholds are DECLARE
+variables at the top of the script, and
+`docs/database-files-capacity.md` explains each section):
+
+```
+sqlcmd -S db.example.local -E -i tsql\database_files_capacity.sql
+```
+
 AWS hosting inventory (run on the current instance before migration
 planning; read the output alongside `docs/aws-hosted-sql-server.md`):
 
@@ -162,7 +176,11 @@ and instance health checks that separate configuration facts from current
 activity. Agent job health is checked from the msdb job tables rather
 than from job success alone, because a job can be enabled and scheduled
 and still never succeed, and a job with no failure notification can be
-broken for a week before anyone notices. The AWS hosting material applies
+broken for a week before anyone notices. Capacity is checked the same
+way: free space inside the files and free space on the disk are reported
+as separate facts, because each one fails differently, and the VLF count
+is reported next to the autogrowth settings that produced it, so a slow
+recovery traces back to the growth history that caused it. The AWS hosting material applies
 the same discipline to a platform decision: inventory the blockers first
 (log shipping, CLR, Agent step types, recovery models), then choose RDS or
 EC2 on evidence rather than on the assumption that a managed instance runs
