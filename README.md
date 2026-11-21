@@ -4,9 +4,10 @@ Operational T-SQL for Microsoft SQL Server administration: instance health
 checks, backup verification from backup history, log shipping
 monitoring, blocking and deadlock diagnosis, wait statistics, index and
 statistics maintenance guidance, TempDB health, SQL Server Agent job
-health, database file and capacity checks, Always On availability group
-monitoring concepts, and AWS hosting guidance (RDS versus EC2) with an
-inventory script to feed that decision.
+health, database file and capacity checks, login, user, and role
+security review, Always On availability group monitoring concepts,
+and AWS hosting guidance (RDS versus EC2) with an inventory script
+to feed that decision.
 These are the checks a DBA runs
 on a schedule and during an incident, written to be scheduled in SQL
 Server Agent or run by hand with the same result either way.
@@ -25,7 +26,7 @@ shipping tables.
 sqlserver-dba-toolkit/
 ├── tsql/   -- T-SQL administrative scripts (health, backups, log shipping,
 │               blocking/deadlocks, waits, indexes, TempDB, Agent jobs,
-│               file and capacity checks)
+│               file and capacity checks, security review)
 └── docs/   -- script conventions, runbooks, and maintenance guidance
 ```
 
@@ -42,6 +43,7 @@ sqlserver-dba-toolkit/
 | `tsql/tempdb_health.sql` | TempDB file layout, space usage by category, top consumers, version store transactions, and current PAGELATCH contention on TempDB pages |
 | `tsql/agent_job_health.sql` | SQL Server Agent job health: recent failures, jobs with no successful run in the threshold window, currently running and long-running jobs, jobs with no schedule, disabled jobs, unresolvable owners, and jobs with no failure notification |
 | `tsql/database_files_capacity.sql` | Database file and capacity check: per-database size and free space inside the files, file inventory with growth settings, volume free space, autogrowth audit, and virtual log file counts |
+| `tsql/security_review.sql` | Login, user, and role security review: server login inventory, server role membership, server-scope permissions, SQL login password policy, orphaned users, privileged database roles, dangerous database grants, and guest and public access |
 | `tsql/hosting_inventory.sql` | Read-only inventory for an AWS hosting decision: edition and version, database recovery models and flags, Agent job step types, linked servers, log shipping and availability group configuration, snapshots, CLR and xp_cmdshell settings |
 
 ## Docs
@@ -54,6 +56,7 @@ sqlserver-dba-toolkit/
 | `docs/always-on-availability-groups.md` | Availability group monitoring: replica state, sync queues and lag, failover readiness, what to alert on |
 | `docs/agent-job-health.md` | How to read the Agent job health check: what each section means, history retention, scheduling the check, and a troubleshooting table |
 | `docs/database-files-capacity.md` | How to read the file and capacity check: free space inside files versus free space on disk, autogrowth guidance, VLF counts, scheduling, and a troubleshooting table |
+| `docs/security-review.md` | How to read the security review: what each section means, how to fix what it finds, scheduling, and a troubleshooting table |
 | `docs/aws-hosted-sql-server.md` | RDS versus EC2 decision guide: what RDS removes or limits, backup and recovery behavior, Multi-AZ versus availability groups, migration paths, sizing and cost notes, decision checklist |
 
 Health check with defaults:
@@ -124,6 +127,15 @@ variables at the top of the script, and
 sqlcmd -S db.example.local -E -i tsql\database_files_capacity.sql
 ```
 
+Security review (login, user, and role findings across the instance;
+thresholds are DECLARE variables at the top of the script, and
+`docs/security-review.md` explains each section and how to fix what
+it finds):
+
+```
+sqlcmd -S db.example.local -E -i tsql\security_review.sql
+```
+
 AWS hosting inventory (run on the current instance before migration
 planning; read the output alongside `docs/aws-hosted-sql-server.md`):
 
@@ -180,7 +192,12 @@ broken for a week before anyone notices. Capacity is checked the same
 way: free space inside the files and free space on the disk are reported
 as separate facts, because each one fails differently, and the VLF count
 is reported next to the autogrowth settings that produced it, so a slow
-recovery traces back to the growth history that caused it. The AWS hosting material applies
+recovery traces back to the growth history that caused it. Security is
+reviewed the same way: logins are checked as principals with roles and
+grants rather than as a user list, orphaned users are found by comparing
+database user SIDs against server logins, and dangerous grants are
+reported with the grant option called out, because a permission that can
+be passed on spreads further than the person it was given to. The AWS hosting material applies
 the same discipline to a platform decision: inventory the blockers first
 (log shipping, CLR, Agent step types, recovery models), then choose RDS or
 EC2 on evidence rather than on the assumption that a managed instance runs
